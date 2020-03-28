@@ -56,8 +56,8 @@ func FromRequest(r *http.Request) net.IP {
 	}
 
 	remoteAddr := r.RemoteAddr
-	if strings.ContainsRune(remoteAddr, ':') {
-		remoteAddr, _, _ = net.SplitHostPort(remoteAddr)
+	if raddr, ok := splitHostPort(remoteAddr); ok {
+		remoteAddr = raddr
 	}
 
 	return net.ParseIP(remoteAddr)
@@ -72,13 +72,8 @@ func fromXForwardedFor(xfwdfor string) net.IP {
 	// Azure Web App's also adds a port for some reason, so we'll only use the first part (the IP)
 	for _, ip := range strings.Split(xfwdfor, ",") {
 		ip = strings.TrimSpace(ip)
-		if strings.ContainsRune(ip, ':') {
-			// make sure we only use this if it's ipv4 (ip:port)
-			host, _, err := net.SplitHostPort(ip)
-			if err != nil {
-				continue
-			}
-			ip = host
+		if raddr, ok := splitHostPort(ip); ok {
+			ip = raddr
 		}
 
 		// Sometimes IP addresses in this header can be 'unknown' (http://stackoverflow.com/a/11285650).
@@ -90,4 +85,9 @@ func fromXForwardedFor(xfwdfor string) net.IP {
 	}
 
 	return nil
+}
+
+func splitHostPort(addr string) (string, bool) {
+	raddr, _, err := net.SplitHostPort(addr)
+	return raddr, raddr != "" && err == nil
 }
